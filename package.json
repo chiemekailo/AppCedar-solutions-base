@@ -3,11 +3,16 @@
   "version": "0.1.0",
   "description": "My Description",
   "engines": {
-    "node": "9.11.1"
+    "node": "*",
+    "npm": "*"
   },
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chiemekailo/AppCedar-solutions-base.git"
   },
   "dependencies": {
     "bitcoinjs-lib": "^3.3.2",
