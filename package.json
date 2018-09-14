@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "bitcoinjs-lib": "^3.3.2",
-    "bitcore-lib": "^0.15.0",
+    "bitcore-lib": "^8.0.0",
     "body-parser": "^1.15.2",
     "cors": "^2.8.0",
     "crc-32": "^1.2.0",
