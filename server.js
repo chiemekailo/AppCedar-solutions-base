@@ -182,6 +182,7 @@ window.setTimeout(function () {console.log("All done.");}, 1000);*/
 //timer things 2
 var kilmer = null;
 if(kilmer == null){
+  return; //no need to keep calling awake on OpenShift.
   var timeWorker = new Worker('wakey-wakey.js');
   timeWorker.onmessage = (event, handle) => {
   };
