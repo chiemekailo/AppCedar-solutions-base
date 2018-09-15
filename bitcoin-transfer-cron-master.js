@@ -40,7 +40,7 @@ const pRIORITYlIMIT = 0;
 /**************************************************************
 * ************ UPDATE IN 4 PLACES, including mobile app *******
 **************************************************************/
-const nODEjssERVER = 'http://appcedar-solutions-bitcoin-appcedar-solutions-bitcoin.193b.starter-ca-central-1.openshiftapps.com/';
+const nODEjssERVER = 'https://bitcoin-cron-appcedar-solutions-crons.193b.starter-ca-central-1.openshiftapps.com/';
 /////const nODEjssERVER = 'https://appcedar-solutions-bitcoin.herokuapp.com/';
 /////const nODEjssERVER = 'http://localhost:5000/';
 /**************************************************************

@@ -181,14 +181,17 @@ window.bindTimeout(function (t) {console.log(t + "ms remaining");}, 100);
 window.setTimeout(function () {console.log("All done.");}, 1000);*/
 //timer things 2
 var kilmer = null;
+/********************
+* //no need to keep calling awake on OpenShift..
 if(kilmer == null){
-  ///return; //no need to keep calling awake on OpenShift..
   var timeWorker = new Worker('wakey-wakey.js');
   timeWorker.onmessage = (event, handle) => {
   };
   timeWorker.postMessage('start');
   ///console.log('called time worker');
 }
+* //no need to keep calling awake on OpenShift.. - ENd
+*********************/
 app.get('/preventSleep', function(req, res) {
 //app.post('/preventSleep', function(req, res) {
 
