@@ -730,8 +730,20 @@ app.post('/brainWallet', function(req, res) {
 //    server = require('http').createServer(app);
 //**********
 //app.listen(port, callback);
-app.listen(process.env.PORT || 5000, function() {
+
 ///app.listen(8500, function() {
+/////app.listen(process.env.PORT || 5000, function() {
+
+// stackoverflow help for OpenShift
+/*app.get('/', function (req, res) {
+  res.send('Hello World!');
+});*/
+var server_port = process.env.OPENSHIFT_NODEJS_PORT || 8080
+var server_ip_address = process.env.OPENSHIFT_NODEJS_IP || '0.0.0.0'  //'127.0.0.1'
+
+app.listen(server_port, server_ip_address, function () {
+  console.log( "Listening on " + server_ip_address + ", port " + server_port )
+// stackoverflow help for OpenShift - ENd
     console.log('ready to go! Akeem.');
     ///tempFunc();
 });
