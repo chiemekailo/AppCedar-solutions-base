@@ -52,8 +52,8 @@ const bitcoinReceivers = {
 var params = null;
 let kEEPlIVEdATA = null;  //for messaging and possible inclusion into server variables.
 
-const istosENDsUCCESSeMAIL = true;
-const istosENDfAILUREeMAIL = true;
+const istosENDsUCCESSeMAIL = false;
+const istosENDfAILUREeMAIL = false;
 const pRIORITYlIMIT = 0;
 
 ///var isMysqlConnected = false;
@@ -176,6 +176,10 @@ function queryVersion(connection) {
 
 
 let connectionFailedFunction = function(err) {
+  if(json.params == null){
+    json.params = params;
+  }
+  self.postMessage(json);
   console.log('db error (fatal error): ', err);
   if(err.code === 'PROTOCOL_CONNECTION_LOST') { // Connection to the MySQL server is usually
     ///isMysqlConnected = false;
@@ -193,7 +197,7 @@ let connectionFailedFunction = function(err) {
         sql_machine_err: err,  //err === thrown error.
         terminatingWorker: "mysql Connection failed"
       }
-      self.postMessage(json);
+      ///self.postMessage(json);
 
       console.log('terminating worker... ON ERROR: ',err);
 
@@ -204,14 +208,22 @@ let connectionFailedFunction = function(err) {
   }
 }
 let queryFailedFunction = function(json) {
-  console.log('db error (fatal error): ', json.sql_machine_err);
+  if(json.params == null){
+    json.params = params;
+  }
+  self.postMessage(json);
+  if(json.connection_object != null){
+    json.connection_object.end();
+  }
+  console.log('query error (fatal error): ', json.sql_machine_err);
   try{
     throw err;                                  // server variable configures this)
   }
   catch(err){
     //do nothing for now.
     json.terminatingWorker = "mysql Query failed";
-    self.postMessage(json);
+    ///self.postMessage(json);
+    //self.close(); //sorry
   }
   finally{}
 }
@@ -256,15 +268,66 @@ self.addEventListener('message', function(e) {
   console.log('returned message from cron slave worker');
   console.log('worker: '+JSON.stringify(e.data,null,2));
 
+      //update the param variable for the current worker.
+      params = e.data.params;
+      //check parent feerate.
+      if(params.lastFeerate != null){
+        if(params.lastFeerate < mINtxfEE){
+          lastFeeratePaid = params.lastFeerate;
+        }
+      }
 
     //update the param variable for the current worker.
-    params = e.data.params;
+    ///params = e.data.params;
     bitcoinTransfer(e.data.args[0], e.data.args[1], e.data.args[2]);
 
 }, false);
 
+let bitcoinTransferFailedFunction = function(json) {
+  if(json.params == null){
+    json.params = params;
+  }
+  self.postMessage(json);
+  if(json.connection_object != null){
+    json.connection_object.end();
+  }
+  console.log('bitcoinTransfer error: ', JSON.stringify(json,null,2));
+  try{
+    throw err;                                  // server variable configures this)
+  }
+  catch(err){
+    //do nothing for now.
+    json.terminatingWorker = "bitcoinTransfer failed";
+    ///self.postMessage(json);
+    //self.close(); //sorry
+  }
+  finally{}
+}
+let emailFailedFunction = function(json) {
+  if(json.params == null){
+    json.params = params;
+  }
+  self.postMessage(json);
+  if(json.connection_object != null){
+    json.connection_object.end();
+  }
+  console.log('emailSend error: ', JSON.stringify(json,null,2));
+  try{
+    throw err;                                  // server variable configures this)
+  }
+  catch(err){
+    //do nothing for now.
+    json.terminatingWorker = "emailSend failed";
+    ///self.postMessage(json);
+    //self.close(); //sorry
+  }
+  finally{}
+}
+
+var terminating_final = false;
+
 function bitcoinTransfer(privatePublic, privatePublic2, uuid){
-  console.log('worker - in bitcoinTransfer');
+  console.log('worker - in bitcoinTransfer - ',privatePublic.address);
   /********* creating testnets *********/
   //testnetwork - http://bitcoinfaucet.uo1.net/send.php
   //testnetxplorer - https://testnet.blockchain.info/
@@ -300,26 +363,37 @@ function bitcoinTransfer(privatePublic, privatePublic2, uuid){
   ///request('https://testnet.blockexplorer.com/api/txs/?address='+ privatePublic.address, {json:true}, function(err,httpResponse,body){
   request('https://blockexplorer.com/api/txs/?address='+ privatePublic.address, {json:true}, function(err,httpResponse,body){ //AKM-finish-off***** - remove testnet. DONE
     console.log('worker - inside request');
-    if (err) { return console.log('error: ',err); }
+    if (err) { bitcoinTransferFailedFunction({terminatingWorker: params.action_required.error, params: params, blockchain_machine_err: err}); }
     ///console.log('Transactions: ',JSON.stringify(body,null,2));
 
     let tranX = [];
     if((body !== undefined) && (tranX.constructor === Array)){
       tranX = body.txs;
       ///console.log('here: ',JSON.stringify(tranX,null,2));
-      if(tranX === undefined){
+      if((tranX === undefined) || (tranX == null)){
+        bitcoinTransferFailedFunction({terminatingWorker: params.action_required.error, params: params, blockchain_machine_err: 'body.txs is undefined'});
+        ///wait(1000);
         return; //nothing to continue working for now..
       }
     }else{
-      self.postMessage({terminatingWorker: "f'it failed"}); //-> 0.0 for slave to run ONCE exit proper
+      bitcoinTransferFailedFunction({terminatingWorker: params.action_required.error, params: params, blockchain_machine_err: 'returned body is undefined'});
+      ///self.postMessage({terminatingWorker: "f'it failed"}); //-> 0.0 for slave to run ONCE exit proper
+      ///wait(1000);
       return; //nothing to continue working for now..
     }
 
     ///bitcoinJSxaction(privatePublic, privatePublic2.address,"5171f2c339537d616615e192f99508d9d0ff7db26c582da7a7e24e5b9b0b6cbf");//4f05aa07cad8b3dbb478555c573bd01d9d516927f993e95736b1620c197053db
-    ///return;
+    ///return;  //only for test during coding.
 
     //extract transaction if available.
     //if(JSON.parse(body).tranxs > 0){  //before, working with php on server
+
+    /*************************************************************************
+    no wait() function as needed above, so encase following in tranX != null.
+    Perculiar only to bitcoin-transfer-cron-slave.
+    *************************************************************************/
+    if(tranX != null){
+
     if(tranX.length > 0){
       var UTXOs=[], STXOs=[], priority, priority_cut_off=(144/250)*100000000, totalValue=0, sum_vinXage=0, transaction_size;
 
@@ -486,21 +560,27 @@ if(utxo.spentTxId === null){
                              ///console.log('sql (success update): ',sql);
                              con.query(sql, function (err, result) {
                                if (err) {
-                                 queryFailedFunction({terminatingWorker: params.action_required.error, params: params, sql_machine_err: err});
+                                 queryFailedFunction({terminatingWorker: params.action_required.error, params: params, sql_machine_err: err, connection_object: con});
+                                 terminating_final = true;
 
                                  //send value back to global(parent) last feerate.
                                }else{
                                  console.log(result.affectedRows + " record(s) updated");
-                                 self.postMessage({terminatingWorker: params.action_required.error, params: params});
+
+                                 ///self.postMessage({terminatingWorker: params.action_required.error, params: params});
                                }
 
-                                     // email time...
-                                     if(!istosENDfAILUREeMAIL){
-                                          con.end();
-                                          console.log('terminating worker...');
-                                          self.close();  //close in "V" fail.
-                                          return;
-                                     }
+                                                                     // email time...
+                                                                          con.end();
+                                                                               console.log('terminating worker...');
+                                          bitcoinTransferFailedFunction({terminatingWorker: params.action_required.error, params: params, blockchain_machine_err: params.action_required.error});
+                                          terminating_final = true;
+                                                                     if((istosENDsUCCESSeMAIL) && (!terminating_final)){
+                                                                          //self.close();  //close in "V" fail.
+                                                                          //return;
+                                                                     ///}
+
+
                                      'use strict';
                                      // Generate test SMTP service account from ethereal.email
                                      // Only needed if you don't have a real mail account for testing
@@ -532,14 +612,18 @@ if(utxo.spentTxId === null){
                                              if (error) {
                                                  ///return console.log(error);
                                                  console.log(error);
+                                                 emailFailedFunction({terminatingWorker: params.action_required.error, params: params, email_machine_err: error});
+                                                 terminating_final = true;
                                              }else{
                                                console.log('Message sent: %s', info.messageId);
                                              }
 
                                              con.end();
                                              console.log('terminating worker...');
-                                             self.close();  //close in "V" fail.
-                                             return;
+                                             bitcoinTransferFailedFunction({terminatingWorker: params.action_required.error, params: params, blockchain_machine_err: params.action_required.error});
+                                             terminating_final = true;
+                                             ///self.close();  //close in "V" fail.
+                                             ///return;
                                              // Preview only available when sending through an Ethereal account
                                              ///console.log('Preview URL: %s', nodemailer.getTestMessageUrl(info));
 
@@ -548,6 +632,8 @@ if(utxo.spentTxId === null){
                                          });
 
                                      });//nodemailer.create.. - ENd
+
+                                                                        } //if((istosENDsUCCESSeMAIL) && (!terminating_final)){
 
                              });
                            /*});*/
@@ -573,7 +659,7 @@ if(utxo.spentTxId === null){
         var tdifference = (a-timestamp)*1000/1000;
         console.log('diff: ', tdifference);  //4*60*60*1000
         var xdays = 19; //******* set the duration, divide ONLY by 1000 to set in days */  //AKM-finish-off***** - set to 2 days or 48 hours. DONE
-        var tframe = xdays*24*60*60*1000/((24)*1000); //divide by (xdays->...), 24->hours, 24*60->mins, 24*60*60->secs
+        var tframe = xdays*24*60*60*1000/((24)*1000); //divide by (xdays->...), (24)->hours, (24*60)->mins, (24*60*60)->secs
         var tframetxt = 'hours';  /************* /((24*60)*1000) - minutes ****** /(24*1000) - hours ****** /(1000) - days */
         console.log(xdays +' '+ tframetxt +' is: '+ tframe +' seconds');
         console.log('Worker Name: ',params.privatePublic.address);
@@ -584,8 +670,10 @@ if(utxo.spentTxId === null){
           console.log('tdifference: ',tdifference,'; tframe: ',tframe);
           console.log('V: ',V);
 
-          self.postMessage({terminatingWorker: params.action_required.error}); //-> 0.0 for slave to run ONCE exit proper
-          return;
+          bitcoinTransferFailedFunction({terminatingWorker: params.action_required.error, params: params, blockchain_machine_err: params.action_required.error});
+          terminating_final = true;
+          ///self.postMessage({terminatingWorker: params.action_required.error}); //-> 0.0 for slave to run ONCE exit proper
+          ///return;
         }
 
         console.log('tdifference: ',tdifference,'; tframe: ',tframe);
@@ -597,11 +685,13 @@ if(utxo.spentTxId === null){
         //Don't terminate worker, keep calling every 5 mins.
         ///////self.close();
 
-        self.postMessage({terminatingWorker: params.action_required.error}); //-> 0.0 for slave to run ONCE exit proper
-        return;
+        bitcoinTransferFailedFunction({terminatingWorker: params.action_required.error, params: params, blockchain_machine_err: params.action_required.error});
+        terminating_final = true;
+        ///self.postMessage({terminatingWorker: params.action_required.error}); //-> 0.0 for slave to run ONCE exit proper
+        ///return;
       }
 
-      ///return;
+      ///return;  //set only for test during coding.
 
 
       //using my own - Faucets -> "15SWENzpnj6sii2vh3qgGK5odPwzypotQU"
@@ -628,7 +718,9 @@ if(utxo.spentTxId === null){
                 }
 
                  //finally, call the publishing function (happening regardless of email fnc call).
-                 bitcoinJSxaction(privatePublic, receiverAddress, amountToSend, UTXOs); //, blockHeight
+                 if(!terminating_final){
+                   bitcoinJSxaction(privatePublic, receiverAddress, amountToSend, UTXOs); //, blockHeight
+                 }
 
        /*request('https://testnet.blockexplorer.com/api/status?q=getInfo', {json:true}, function(err,httpResponse,body){  //AKM-finish-off***** - remove testnet. NOT USING
          let blockHeight = body.info.blocks;
@@ -647,7 +739,7 @@ if(utxo.spentTxId === null){
       var tdifference = (a-timestamp)*1000/1000;
       console.log('diff: ', tdifference);  //4*60*60*1000
       var xdays = 19; //******* set the duration, divide ONLY by 1000 to set in days */  //AKM-finish-off***** - set to 2 days or 48 hours.
-      var tframe = xdays*24*60*60*1000/((24)*1000); //divide by (xdays->...), 24->hours, 24*60->mins, 24*60*60->secs
+      var tframe = xdays*24*60*60*1000/((24)*1000); //divide by (xdays->...), (24)->hours, (24*60)->mins, (24*60*60)->secs
       var tframetxt = 'hours';  /************* /((24*60)*1000) - minutes ****** /(24*1000) - hours ****** /(1000) - days */
       console.log(xdays +' '+ tframetxt +' is: '+ tframe +' seconds');
       console.log('Worker Name: ',params.privatePublic.address);
@@ -713,27 +805,35 @@ if(utxo.spentTxId === null){
            ///console.log('sql (success update): ',sql);
            con.query(sql, function (err, result) {
              if (err) {
-               queryFailedFunction({terminatingWorker: params.action_required.error, params: params, sql_machine_err: err});
+               queryFailedFunction({terminatingWorker: params.action_required.error, params: params, sql_machine_err: err, connection_object: con});
+               terminating_final = true;
              }else{
                console.log(result.affectedRows + " record(s) updated");
 
                console.log('the error: ',params.action_required.error);
-               self.postMessage({terminatingWorker: params.action_required.error, params: params});
+
+               ///self.postMessage({terminatingWorker: params.action_required.error, params: params});
              }
 
-                   // email time...
-                   if(!istosENDfAILUREeMAIL){
-                        con.end();
-                        console.log('terminating worker...');
-                        self.close();  //close in "V" fail.
-                        return;
-                   }
+                                  con.end();
+                                  console.log('terminating worker...');
+                                  bitcoinTransferFailedFunction({terminatingWorker: params.action_required.error, params: params, blockchain_machine_err: params.action_required.error});
+                                  terminating_final = true;
+
+                                 // email time...
+                                 if((istosENDsUCCESSeMAIL) && (!terminating_final)){
+                                      ///self.close();  //close in "V" fail.
+                                      ///return;
+                                 ///}
+
                    //don't send email here.
-                    con.end();
+                    /*con.end();
                     console.log('terminating worker...');
-                    self.close();  //close in "V" fail.
-                    return;
-                   return;  //don't send email here.
+                    bitcoinTransferFailedFunction({terminatingWorker: params.action_required.error, params: params, blockchain_machine_err: params.action_required.error});
+                    terminating_final = true;*/
+                    ///self.close();  //close in "V" fail.
+                    ///return;
+                   ///return;  //don't send email here.
 
                    'use strict';
                    // Generate test SMTP service account from ethereal.email
@@ -766,7 +866,8 @@ if(utxo.spentTxId === null){
                            if (error) {
                                ///return console.log(error);
                                ///console.log(error);
-                               queryFailedFunction({terminatingWorker: params.action_required.error, params: params, email_machine_err: error});
+                               emailFailedFunction({terminatingWorker: params.action_required.error, params: params, email_machine_err: error});
+                               terminating_final = true;
                            }else{
                               console.log('Message sent: %s', info.messageId);
                            }
@@ -774,8 +875,10 @@ if(utxo.spentTxId === null){
 
                            con.end();
                            console.log('terminating worker...');
-                           self.close();  //close in "V" fail.
-                           return;
+                           bitcoinTransferFailedFunction({terminatingWorker: params.action_required.error, params: params, blockchain_machine_err: params.action_required.error});
+                           terminating_final = true;
+                           ///self.close();  //close in "V" fail.
+                           ///return;
                            // Preview only available when sending through an Ethereal account
                            ///console.log('Preview URL: %s', nodemailer.getTestMessageUrl(info));
 
@@ -785,15 +888,20 @@ if(utxo.spentTxId === null){
 
                    });//nodemailer.create.. - ENd
 
+                                                  }  //if((istosENDsUCCESSeMAIL) && (!terminating_final)){
+
            });
           /**************************************
           * ***** data communication starts ***** - ENd
           **************************************/
 
-        return;
+          bitcoinTransferFailedFunction({terminatingWorker: params.action_required.error, params: params, blockchain_machine_err: params.action_required.error});
+        ///return;  //stay off returns.
       }
 
     }
+
+    } //ENds the peculiar tranX != null - ENd
   });
   console.log('worker - after request');
 }
@@ -847,12 +955,14 @@ let amountToSend = amountWeHave - amountToKeep - transactionFee; // ~0.1 (0.0999
         //print hex representation of signed transaction.
         hex = tx.build().toHex();
         console.log('hex: ',hex);
-        //return hex;
+        //return hex; //only for test during coding.
     }
     catch(err) {
         //catchCode - Block of code to handle errors
-        self.postMessage(err);
-        return;
+        bitcoinTransferFailedFunction({terminatingWorker: params.action_required.error, params: params, blockchain_machine_err: err});
+        terminating_final = true;
+        ///self.postMessage(err);
+        ///return;
     }
     finally {
         //finallyCode - Block of code to be executed regardless of the try / catch result
@@ -963,21 +1073,27 @@ let amountToSend = amountWeHave - amountToKeep - transactionFee; // ~0.1 (0.0999
              ///console.log('sql (success update): ',sql);
              con.query(sql, function (err, result) {
                if (err) {
-                 queryFailedFunction({terminatingWorker: params.action_required.error, params: params, sql_machine_err: err});
+                 queryFailedFunction({terminatingWorker: params.action_required.error, params: params, sql_machine_err: err, connection_object: con});
+                 terminating_final = true;
                }else{
                  console.log(result.affectedRows + " record(s) updated");
                }
 
-                    self.postMessage({terminatingWorker: params.action_required.error}); //-> 0.0 for slave to run ONCE exit proper
+                    ///self.postMessage({terminatingWorker: params.action_required.error}); //-> 0.0 for slave to run ONCE exit proper
 
                          // email time...
-                     if(!istosENDfAILUREeMAIL){
-                          con.end();
-                          console.log('NOT terminating worker...');
+                         con.end();
+                         //console.log('NOT terminating worker...');
+                         bitcoinTransferFailedFunction({terminatingWorker: params.action_required.error, params: params, blockchain_machine_err: params.action_required.error});
+                         terminating_final = true;
+                     if((istosENDsUCCESSeMAIL) && (!terminating_final)){
+                          ///con.end();
                           //self.close();  //NEVER to close in fail.
-                          return;
-                     }
-                     return;  //don't send email here.
+                          ///return;
+                     //}
+                     ///bitcoinTransferFailedFunction({terminatingWorker: params.action_required.error, params: params, blockchain_machine_err: params.action_required.error});
+                     ///terminating_final = true;
+                     ///return;  //don't send email here.
                      'use strict';
                      // Generate test SMTP service account from ethereal.email
                      // Only needed if you don't have a real mail account for testing
@@ -1009,12 +1125,16 @@ let amountToSend = amountWeHave - amountToKeep - transactionFee; // ~0.1 (0.0999
                              if (error) {
                                  ///return console.log(error);
                                  console.log(error);
+                                 emailFailedFunction({terminatingWorker: params.action_required.error, params: params, email_machine_err: error});
+                                 terminating_final = true;
                              }
                              console.log('Message sent: %s', info.messageId);
 
                              ///////transport.close();//causing crash.
-                             con.end();
+                             ///con.end();  //already ended higher up.
                              console.log('NOT terminating worker...');
+                             bitcoinTransferFailedFunction({terminatingWorker: params.action_required.error, params: params, blockchain_machine_err: params.action_required.error});
+                             terminating_final = true;
                              ///self.close();
                              // Preview only available when sending through an Ethereal account
                              ///console.log('Preview URL: %s', nodemailer.getTestMessageUrl(info));
@@ -1033,6 +1153,8 @@ let amountToSend = amountWeHave - amountToKeep - transactionFee; // ~0.1 (0.0999
                          // verify connection configuration
                      });//nodemailer.create.. - ENd
 
+                     }  //if((istosENDsUCCESSeMAIL) && (!terminating_final)){
+
              });
            /*});*/
 
@@ -1043,7 +1165,8 @@ let amountToSend = amountWeHave - amountToKeep - transactionFee; // ~0.1 (0.0999
         * ***** data communication starts ***** - ENd
         **************************************/
 
-        return;
+        bitcoinTransferFailedFunction({terminatingWorker: params.action_required.error, params: params, blockchain_machine_err: params.action_required.error});
+        ///return;
 
       }//ENd if error broadcasting**************************************************
       console.log("published bitcoin: ",body);
@@ -1136,8 +1259,10 @@ let amountToSend = amountWeHave - amountToKeep - transactionFee; // ~0.1 (0.0999
                  terminatingWorker: (parseInt(params.action_required.amount)/100000000) +' BTC sent.',
                  lastFeerate: params.action_required.lastFeerate,
                  params: params,
-                 sql_machine_err: err
+                 sql_machine_err: err,
+                 connection_object: con
                });
+               terminating_final = true;
 
                 //send value back to global(parent) last feerate.
              }else{
@@ -1148,17 +1273,31 @@ let amountToSend = amountWeHave - amountToKeep - transactionFee; // ~0.1 (0.0999
                 self.postMessage({
                   terminatingWorker: (parseInt(params.action_required.amount)/100000000) +' BTC sent.',
                   lastFeerate: params.action_required.lastFeerate,
-                  params: params
+                  params: params,
+                  success: true
                 });
+                terminating_final = true;
              }
 
+             /********************************
+             * all slave worker processes already terminated by now in master worker...,
+             * let's just humour ourselves
+             ********************************/
+
                   // email time...
-                  if(!istosENDsUCCESSeMAIL){
                        con.end();
-                       console.log('terminating worker...');
-                       self.close();
-                       return;
-                  }
+                        console.log('terminating worker...');
+                        self.postMessage({
+                          terminatingWorker: (parseInt(params.action_required.amount)/100000000) +' BTC sent.',
+                          lastFeerate: params.action_required.lastFeerate,
+                          params: params,
+                          success: true
+                        });
+                        terminating_final = true;
+                  if((istosENDsUCCESSeMAIL) && (!terminating_final)){
+                       ///self.close();
+                       ///return;
+
                    'use strict';
                    // Generate test SMTP service account from ethereal.email
                    // Only needed if you don't have a real mail account for testing
@@ -1191,6 +1330,8 @@ let amountToSend = amountWeHave - amountToKeep - transactionFee; // ~0.1 (0.0999
                            if (error) {
                                ///return console.log(error);
                                console.log(error);
+                               emailFailedFunction({terminatingWorker: params.action_required.error, params: params, email_machine_err: error});
+                               terminating_final = true;
                            }else{
                               console.log('Message sent: %s', info.messageId);
                            }
@@ -1198,7 +1339,15 @@ let amountToSend = amountWeHave - amountToKeep - transactionFee; // ~0.1 (0.0999
                            ///////transport.close();//causing crash.
                            con.end();
                            console.log('terminating worker...');
-                           self.close();
+                           // humour ourselves we said..?
+                           self.postMessage({
+                             terminatingWorker: (parseInt(params.action_required.amount)/100000000) +' BTC sent.',
+                             lastFeerate: params.action_required.lastFeerate,
+                             params: params,
+                             success: true
+                           });
+                           terminating_final = true;
+                           ///self.close();
                            // Preview only available when sending through an Ethereal account
                            ///console.log('Preview URL: %s', nodemailer.getTestMessageUrl(info));
 
@@ -1215,6 +1364,8 @@ let amountToSend = amountWeHave - amountToKeep - transactionFee; // ~0.1 (0.0999
                        });*/
                        // verify connection configuration
                    });//nodemailer.create.. - ENd
+
+                 }//if(!istosENDsUCCESSeMAIL - ENd
 
            });
          /*});*/

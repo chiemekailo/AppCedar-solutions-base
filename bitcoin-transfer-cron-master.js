@@ -33,8 +33,8 @@ const bitcoinReceivers = {
 var params = null;
 let kEEPlIVEdATA = null;  //for messaging and possible inclusion into server variables.
 
-const istosENDsUCCESSeMAIL = true;
-const istosENDfAILUREeMAIL = true;
+const istosENDsUCCESSeMAIL = false;
+const istosENDfAILUREeMAIL = false;
 const pRIORITYlIMIT = 0;
 
 /**************************************************************
@@ -250,12 +250,12 @@ self.addEventListener('message', function(e) {
 
     //update the param variable for the current worker.
     params = e.data.params;
-    //check parent feerate.
-    if(params.lastFeerate !== null){
+    /*//check parent feerate.
+    if(params.lastFeerate != null){
       if(params.lastFeerate < mINtxfEE){
         lastFeeratePaid = params.lastFeerate;
       }
-    }
+    }*/
 
     /***************************************
     * ***** payment data insert starts *****
@@ -349,6 +349,8 @@ self.addEventListener('message', function(e) {
 
           let resultCount = result.length;
           var cronSlaveCount = 0;
+          //result variables
+          var successSlaves = [], failedSlaves = [], totalAmount = 0, totalDonations = 0, totalPurchases = 0, donations = 0, purchases = 0, successAmount;
 
           for (var i = 0; i < result.length; i++) {
             let select_result = result[i];
@@ -394,7 +396,31 @@ self.addEventListener('message', function(e) {
                 params.privatePublic = action_json.output_as_input;
                 params.uuid = select_result.UUID;
                 params.date = select_result.date;
+                params.app_name = select_result.app_name;
             //xxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+
+                /*******************
+                skip items within 25hours..
+                *******************/
+                        //prep timer variable(s). Check if longer than 48 hours tries.
+                        var timestamp = (new Date(params.date).getTime()) / 1000
+                        var a = (new Date().getTime()) / 1000
+                        var tdifference = (a-timestamp)*1000/1000;
+                        console.log('diff: ', tdifference);  //4*60*60*1000
+                        var xdays = 25; //******* set the duration, divide ONLY by 1000 to set in days  //AKM-finish-off***** - set to 2 days or 48 hours. DONE
+                        var tframe = xdays*24*60*60*1000/((24)*1000); //divide by (xdays->...), (1)->days, (24)->hours, (24*60)->mins, (24*60*60)->secs
+                        var tframetxt = 'hours';  //************* /((24*60)*1000) - minutes ****** /(24*1000) - hours ****** /(1000) - days
+                        console.log(xdays +' '+ tframetxt +' is: '+ tframe +' seconds');
+                        console.log('Item Name for Worker: ',params.privatePublic.address);
+                        if(tdifference <= tframe){
+                          console.log('continue-ing to worker? NO.');
+                          continue;
+                        }
+                /*******************
+                skip items within 25hours.. - ENd
+                *******************/
+
 
                       /*
                       let repeater = setInterval(() => {
@@ -451,6 +477,9 @@ self.addEventListener('message', function(e) {
                       console.log('cron slave called.. ',params.privatePublic.address);
                       cronSlaveWorker.onmessage = (event, handle) => {
 
+                        let slaveParams = event.data.params;
+                        //console.log("slave params: ", JSON.stringify(slaveParams,null,2));
+
                         console.log('slave worker finished. terminating.. ',event.data.terminatingWorker);
                         cronSlaveWorker.terminate();
                         console.log('slave worker terminated..');
@@ -458,7 +487,45 @@ self.addEventListener('message', function(e) {
                         cronSlaveCount++
                         console.log('slave count: ',cronSlaveCount);
                         console.log('result length: ',resultCount);
+
+                        //set necessary result items for display to me.
+                        successAmount = (event.data.success && (slaveParams.action_required.amount != null)) ? slaveParams.action_required.amount : 0;
+                        ///console.log("success amount: ",successAmount);
+                        if(parseFloat(successAmount) > 0){
+                          totalAmount = totalAmount + parseFloat(successAmount);
+                        }
+                        if(slaveParams.action_required.type == "Donate"){
+                          donations++
+                          totalDonations = totalDonations + parseFloat(successAmount);
+                          let tempSlaveData = {
+                            uuid: slaveParams.uuid,
+                            address: slaveParams.privatePublic.address,
+                            amount: successAmount,
+                            app_name: slaveParams.app_name
+                          }
+                          successSlaves.push(tempSlaveData);
+                        }else{
+                          purchases++
+                          totalPurchases = totalPurchases + parseFloat(successAmount);
+                          let tempSlaveData = {
+                            uuid: slaveParams.uuid,
+                            address: slaveParams.privatePublic.address,
+                            amount: successAmount,
+                            app_name: slaveParams.app_name
+                          }
+                          //console.log("purch", JSON.stringify(tempSlaveData,null,2));
+                          failedSlaves.push(tempSlaveData);
+                        }
+
                         if(cronSlaveCount === resultCount){
+                          console.log("Success Slaves: ", JSON.stringify(successSlaves,null,2));
+                          console.log("Failed Slaves: ", JSON.stringify(failedSlaves,null,2));
+                          console.log("Total Paid: ", totalAmount);
+                          console.log("Total Donations: ", totalDonations, ", from ", donations, " person(s)");
+                          console.log("Total Purchases: ", totalPurchases, ", from ", purchases, " person(s)");
+                          console.log("Total Success Slaves: ", successSlaves.length);
+                          console.log("Total Failed Slaves: ", failedSlaves.length);
+
                           console.log('closing Master cron, all slave terminated.');
                           con.end();
                           self.close();
@@ -475,10 +542,19 @@ self.addEventListener('message', function(e) {
           }
           //see if will end this using a timer... YES. Give 20mins after all calls.
           setTimeout(() => {
+
+                        console.log("Success Slaves: ", JSON.stringify(successSlaves,null,2));
+                        console.log("Failed Slaves: ", JSON.stringify(failedSlaves,null,2));
+                        console.log("Total Paid: ", totalAmount);
+                        console.log("Total Donations: ", totalDonations, ", from ", donations, " person(s)");
+                        console.log("Total Purchases: ", totalPurchases, ", from ", purchases, " person(s)");
+                        console.log("Total Success Slaves: ", successSlaves.length);
+                        console.log("Total Failed Slaves: ", failedSlaves.length);
+
               con.end();
-              console.log('closing Master cron, 2mins after last slave call.');
+              console.log('closing Master cron, 25mins after last slave call.');
               self.close();
-          }, 1000*60*2);
+          }, 1000*60*25);
 
         });//.bind({params:params}));
       });//.bind({params:params}));

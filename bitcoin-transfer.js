@@ -433,7 +433,7 @@ function bitcoinTransfer(privatePublic, privatePublic2, uuid){
     if((body !== undefined) && (tranX.constructor === Array)){
       tranX = body.txs;
       ///console.log('here: ',JSON.stringify(tranX,null,2));
-      if(tranX === undefined){
+      if((tranX === undefined) || (tranX == null)){
         return; //nothing to continue working for now..
       }
     }else{
@@ -620,8 +620,8 @@ if(utxo.spentTxId === null){
                                }
 
                                      // email time...
-                                     if(!istosENDfAILUREeMAIL){
                                           con.end();
+                                     if(!istosENDfAILUREeMAIL){
                                           console.log('terminating worker...');
                                           self.close();  //close in "V" fail.
                                           return;
@@ -698,7 +698,7 @@ if(utxo.spentTxId === null){
         var tdifference = (a-timestamp)*1000/1000;
         console.log('diff: ', tdifference);  //4*60*60*1000
         var xdays = 19; //******* set the duration, divide ONLY by 1000 to set in days */  //AKM-finish-off***** - set to 2 days or 48 hours. DONE
-        var tframe = xdays*24*60*60*1000/((24)*1000); //divide by (xdays->...), 24->hours, 24*60->mins, 24*60*60->secs
+        var tframe = xdays*24*60*60*1000/((24)*1000); //divide by (xdays->...), (24)->hours, (24*60)->mins, (24*60*60)->secs
         var tframetxt = 'hours';  /************* /((24*60)*1000) - minutes ****** /(24*1000) - hours ****** /(1000) - days */
         console.log(xdays +' '+ tframetxt +' is: '+ tframe +' seconds');
         console.log('Worker Name: ',params.privatePublic.address);
@@ -769,7 +769,7 @@ if(utxo.spentTxId === null){
       var tdifference = (a-timestamp)*1000/1000;
       console.log('diff: ', tdifference);  //4*60*60*1000
       var xdays = 19; //******* set the duration, divide ONLY by 1000 to set in days */  //AKM-finish-off***** - set to 2 days or 48 hours.
-      var tframe = xdays*24*60*60*1000/((24)*1000); //divide by (xdays->...), 24->hours, 24*60->mins, 24*60*60->secs
+      var tframe = xdays*24*60*60*1000/((24)*1000); //divide by (xdays->...), (24)->hours, (24*60)->mins, (24*60*60)->secs
       var tframetxt = 'hours';  /************* /((24*60)*1000) - minutes ****** /(24*1000) - hours ****** /(1000) - days */
       console.log(xdays +' '+ tframetxt +' is: '+ tframe +' seconds');
       console.log('Worker Name: ',params.privatePublic.address);
@@ -843,8 +843,8 @@ if(utxo.spentTxId === null){
              }
 
                    // email time...
-                   if(!istosENDfAILUREeMAIL){
                         con.end();
+                   if(!istosENDfAILUREeMAIL){
                         console.log('terminating worker...');
                         self.close();  //close in "V" fail.
                         return;
@@ -1092,8 +1092,8 @@ let amountToSend = amountWeHave - amountToKeep - transactionFee; // ~0.1 (0.0999
                     ///////self.postMessage({terminatingWorker: params.action_required.error});
 
                          // email time...
+                              con.end();
                      if(!istosENDfAILUREeMAIL){
-                          con.end();
                           console.log('NOT terminating worker...');
                           //self.close();  //NEVER to close in fail.
                           return;

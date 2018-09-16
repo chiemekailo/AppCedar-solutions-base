@@ -183,6 +183,9 @@ window.setTimeout(function () {console.log("All done.");}, 1000);*/
 var kilmer = null;
 /********************
 * //no need to keep calling awake on OpenShift..
+*********************
+* //OpenShift made this possible.
+********************?* //activate prevent sleep by adding after b4 '?*'
 if(kilmer == null){
   var timeWorker = new Worker('wakey-wakey.js');
   timeWorker.onmessage = (event, handle) => {
@@ -190,8 +193,8 @@ if(kilmer == null){
   timeWorker.postMessage('start');
   ///console.log('called time worker');
 }
-* //no need to keep calling awake on OpenShift.. - ENd
-*********************/
+/* //no need to keep calling awake on OpenShift.. - ENd
+/*********************/
 app.get('/preventSleep', function(req, res) {
 //app.post('/preventSleep', function(req, res) {
 
@@ -736,18 +739,23 @@ app.post('/brainWallet', function(req, res) {
 //app.listen(port, callback);
 
 ///app.listen(8500, function() {
-/////app.listen(process.env.PORT || 5000, function() {
-
+/************?* //<<-- add slash after '?*' to go local <> toggle 7 line down
+var server_port = process.env.PORT || 5000
+app.listen(server_port, function() {
+  console.log( "Listening on 'localhost', port " + server_port )
 // stackoverflow help for OpenShift
-/*app.get('/', function (req, res) {
-  res.send('Hello World!');
-});*/
+//**************
+  app.get('/', function (req, res) {
+    res.send('Hello World!');
+  });
+/************?*/ //<<-- add slash after '?*' to go OpenShift <> toggle 7 line up
 var server_port = process.env.OPENSHIFT_NODEJS_PORT || 8080
 var server_ip_address = process.env.OPENSHIFT_NODEJS_IP || '0.0.0.0'  //'127.0.0.1'
 
 app.listen(server_port, server_ip_address, function () {
   console.log( "Listening on " + server_ip_address + ", port " + server_port )
 // stackoverflow help for OpenShift - ENd
+/************/
     console.log('ready to go! Akeem.');
     ///tempFunc();
 });
