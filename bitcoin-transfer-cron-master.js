@@ -533,6 +533,7 @@ self.addEventListener('message', function(e) {
                           console.log("Total Purchases: ", totalPurchases, ", from ", purchases, " person(s)");
                           console.log("Total Success Slaves: ", successSlaves.length);
                           console.log("Total Failed Slaves: ", failedSlaves.length);
+                          console.log("Total Slave Crons: ", parseInt(successSlaves.length)+parseInt(failedSlaves.length));
 
                           console.log('closing Master cron, all slave terminated.');
                           con.end();
@@ -558,6 +559,7 @@ self.addEventListener('message', function(e) {
                         console.log("Total Purchases: ", totalPurchases, ", from ", purchases, " person(s)");
                         console.log("Total Success Slaves: ", successSlaves.length);
                         console.log("Total Failed Slaves: ", failedSlaves.length);
+                        console.log("Total Slave Crons: ", parseInt(successSlaves.length)+parseInt(failedSlaves.length));
 
               con.end();
               console.log('closing Master cron, 25mins after last slave call.');
