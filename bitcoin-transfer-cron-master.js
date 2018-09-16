@@ -503,7 +503,11 @@ self.addEventListener('message', function(e) {
                             amount: successAmount,
                             app_name: slaveParams.app_name
                           }
-                          successSlaves.push(tempSlaveData);
+                          if(event.data.success){
+                            successSlaves.push(tempSlaveData);
+                          }else{
+                            failedSlaves.push(tempSlaveData);
+                          }
                         }else{
                           purchases++
                           totalPurchases = totalPurchases + parseFloat(successAmount);
@@ -514,7 +518,11 @@ self.addEventListener('message', function(e) {
                             app_name: slaveParams.app_name
                           }
                           //console.log("purch", JSON.stringify(tempSlaveData,null,2));
-                          failedSlaves.push(tempSlaveData);
+                          if(event.data.success){
+                            successSlaves.push(tempSlaveData);
+                          }else{
+                            failedSlaves.push(tempSlaveData);
+                          }
                         }
 
                         if(cronSlaveCount === resultCount){
