@@ -31,7 +31,7 @@ const pRIORITYlIMIT = 0;
 
 //create a global connection Object
 let conParams = {
-  host: "heron.whogohost.com",  //website: localhost  //my laptop ip: 105.112.68.19
+  host: "hawk.whogohost.com",  //website: localhost  //my laptop ip: 105.112.68.19
   user: "appcedar_wp001",//"appcedar_chiemek",
   password: "paab$3419",//"82PuSlm56b",
   database: "appcedar_wp001"
@@ -51,7 +51,7 @@ var url = require('url'), //npm install url
     SocksConnection = require('socksjs'); //npm install socksjs
 
 var remote_options = {
-    host:'appcedar_wp001.eu-west-1.rds.amazonaws.com',  //'heron.whogohost.com', //
+    host:'appcedar_wp001.eu-west-1.rds.amazonaws.com',  //'hawk.whogohost.com', //
     port: 3306
 };
 
@@ -101,7 +101,7 @@ const fixieUrl = process.env.FIXIE_SOCKS_HOST;
 const fixieValues = fixieUrl.split(new RegExp('[/(:\\/@)/]+'));
 
 const mysqlServer = {
-  host: 'heron.whogohost.com',
+  host: 'hawk.whogohost.com',
   port: 3306
 };
 

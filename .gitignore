@@ -1,2 +1,4 @@
 .env
 akm_get_checksum_index.js
+matrix.js
+matrix-jwt-payload.js

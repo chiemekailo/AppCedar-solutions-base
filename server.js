@@ -57,7 +57,7 @@ app.get('/', function(req, res) {
 
 
 /*let conParams = {
-  host: "heron.whogohost.com",  //website: localhost  //my laptop ip: 105.112.68.19
+  host: "hawk.whogohost.com",  //website: localhost  //my laptop ip: 105.112.68.19
   user: "appcedar_wp001",//"appcedar_chiemek",
   password: "paab$3419",//"82PuSlm56b",
   database: "appcedar_wp001"
@@ -72,8 +72,180 @@ connection.query(sql, function (err, result) {
 return;*/
 
 
+  //get matrix.
+  app.get('/getMatrixJWTpayload', function(req, res) {
 
-//get google translation.
+        console.log('in server... matrix: ',req.query);
+        let obj = JSON.parse(req.query.a);
+
+        var matrixJWT = {}, matrixJWTpayload;
+        if(obj.matrix === true){
+          matrixJWT.matrix = obj.matrix;
+          matrixJWTpayload = new Worker('matrix.js');
+        }
+        //matrixJWTpayload.name = 'matrixJWTpayload-1';
+
+        matrixJWTpayload.onmessage = (event, handle) => {
+            //this.result = event.data.join(',');
+            if(typeof(event.data) === 'object'){
+              console.log('object confirmed.., of event');
+              if(event.data.terminatingWorker > ""){
+                  if(event.data.terminatingWorker.indexOf('Worker initiate failed.') !== -1){
+                    //call function to remove worker params..
+
+                    //respond to client with original sent.
+                    res.json({
+                      "status": "Worker terminated. "+event.data.terminatingWorker
+                    });
+                  }else{
+                                /*******************************/
+                                res.json({
+                                  translations: event.data.sql_machine_err,
+                                  "status": "Worker terminated. "+event.data.terminatingWorker
+                                });
+                                /********************************
+                                NodeJS continues running, but
+                                you cannot set res.json() again..
+                                ********************************
+                                return;
+                                /*****/
+                  }
+              }
+              if(event.data.err !== undefined){
+                //any other way to send message to client, other than res.json ???
+              }
+              if(event.data.message !== undefined){
+                //respond to client with result.
+                /////res.json(event.data);  //nothing to take back here.
+
+                res.json({
+                  matrix: event.data.message
+                });
+
+                if(event.data.workerIsFinished){
+                  //end things...
+                  //handle[0].end();
+                  //handle[0].close();
+                  matrixJWTpayload.terminate();
+                  console.log('worker terminated..');
+                }
+
+              }//if(event.data.complete_jsons - ENd
+            }
+            //console.log('called web worker, in onmessage: '+JSON.stringify(event.data,null,2));//.join(','));
+        };
+        ///console.log('initial params: ',JSON.stringify(params,null,2));
+        matrixJWTpayload.postMessage(matrixJWT);
+        console.log('called web worker matrixJWTpayload');
+
+  });
+
+
+//post matrix.
+app.post('/getMatrixJWTpayload', function(req, res) {
+
+        console.log('in server... matrix: ',req.body);
+
+        var matrixJWT = {}, matrixJWTpayload;
+        if(req.body != undefined){
+          if(req.body.matrix == true){
+            matrixJWT.matrix = req.body.matrix;
+            matrixJWTpayload = new Worker('matrix.js');
+          }else if(req.body.jwt == true){
+            matrixJWT.jwt = req.body.jwt;
+            matrixJWT.uuid = req.body.uuid;
+            matrixJWT.app_name = req.body.app_name;
+            matrixJWT.payment_item = req.body.payment_item;
+            matrixJWTpayload = new Worker('matrix-jwt-payload.js');
+          }else if(req.body.payload == true){
+            matrixJWT.jwt = req.body.jwt;
+            matrixJWT.uuid = req.body.uuid;
+            matrixJWT.app_name = req.body.app_name;
+            matrixJWT.payment_item = req.body.payment_item;
+            matrixJWT.payload = req.body.payload;
+            matrixJWT.page = req.body.page;
+            matrixJWT.matrix_juman = req.body.matrix_juman;
+            matrixJWT.jwt_load = req.body.jwt_load;
+            matrixJWTpayload = new Worker('matrix-jwt-payload.js');
+          }else if(req.body.searchM_obj != null){
+            matrixJWT.jwt = req.body.jwt;
+            matrixJWT.uuid = req.body.uuid;
+            matrixJWT.app_name = req.body.app_name;
+            matrixJWT.payload = req.body.payload;
+            matrixJWT.matrix_juman = req.body.matrix_juman;
+            matrixJWT.jwt_load = req.body.jwt_load;
+            matrixJWT.searchM_obj = req.body.searchM_obj;
+            matrixJWT.GlobalcHAPTERdESIGNATIONtEXT = req.body.GlobalcHAPTERdESIGNATIONtEXT;
+            matrixJWTpayload = new Worker('matrix-jwt-payload.js');
+          }
+        }else if(req.query != undefined){
+          if(req.query.a.matrix === true){
+            matrixJWT.matrix = req.body.matrix;
+            matrixJWTpayload = new Worker('matrix.js');
+          }
+        }
+        //matrixJWTpayload.name = 'matrixJWTpayload-1';
+
+        matrixJWTpayload.onmessage = (event, handle) => {
+            //this.result = event.data.join(',');
+            if(typeof(event.data) === 'object'){
+              console.log('object confirmed.., of event');
+              if(event.data.terminatingWorker > ""){
+                  if(event.data.terminatingWorker.indexOf('Worker initiate failed.') !== -1){
+                    //call function to remove worker params..
+
+                    //respond to client with original sent.
+                    res.json({
+                      "status": "Worker terminated. "+event.data.terminatingWorker
+                    });
+                  }else{
+                                /*******************************/
+                                res.json({
+                                  error: (event.data.sql_machine_err) ? event.data.sql_machine_err : event.data.error,
+                                  "status": "Worker terminated. "+event.data.terminatingWorker
+                                });
+
+                                matrixJWTpayload.terminate();
+                                console.log('worker terminated.. wtf');
+                                /********************************
+                                NodeJS continues running, but
+                                you cannot set res.json() again..
+                                ********************************
+                                return;
+                                /*****/
+                  }
+              }
+              if(event.data.err !== undefined){
+                //any other way to send message to client, other than res.json ???
+              }
+              if(event.data.message !== undefined){
+                //respond to client with result.
+                /////res.json(event.data);  //nothing to take back here.
+
+                res.json({
+                  matrix: event.data.message
+                });
+
+                if(event.data.workerIsFinished){
+                  //end things...
+                  //handle[0].end();
+                  //handle[0].close();
+                  matrixJWTpayload.terminate();
+                  console.log('worker terminated..');
+                }
+
+              }//if(event.data.complete_jsons - ENd
+            }
+            //console.log('called web worker, in onmessage: '+JSON.stringify(event.data,null,2));//.join(','));
+        };
+        ///console.log('initial params: ',JSON.stringify(params,null,2));
+        matrixJWTpayload.postMessage(matrixJWT);
+        console.log('called web worker matrixJWTpayload');
+
+});
+
+
+//run cron jobs.
 app.post('/cronRun', function(req, res) {
 
         console.log('in server...');
@@ -185,7 +357,7 @@ var kilmer = null;
 * //no need to keep calling awake on OpenShift..
 *********************
 * //OpenShift made this possible.
-********************?* //activate prevent sleep by adding after b4 '?*'
+********************?* //activate prevent sleep by adding '/' after '?*'
 if(kilmer == null){
   var timeWorker = new Worker('wakey-wakey.js');
   timeWorker.onmessage = (event, handle) => {
@@ -739,7 +911,7 @@ app.post('/brainWallet', function(req, res) {
 //app.listen(port, callback);
 
 ///app.listen(8500, function() {
-/************?* //<<-- add slash after '?*' to go local <> toggle 7 line down
+/************?*/ //<<-- add slash after '?*' to go local <> toggle 7 line down
 var server_port = process.env.PORT || 5000
 app.listen(server_port, function() {
   console.log( "Listening on 'localhost', port " + server_port )
@@ -748,7 +920,7 @@ app.listen(server_port, function() {
   app.get('/', function (req, res) {
     res.send('Hello World!');
   });
-/************?*/ //<<-- add slash after '?*' to go OpenShift <> toggle 7 line up
+/************?* //<<-- add slash after '?*' to go OpenShift <> toggle 7 line up
 var server_port = process.env.OPENSHIFT_NODEJS_PORT || 8080
 var server_ip_address = process.env.OPENSHIFT_NODEJS_IP || '0.0.0.0'  //'127.0.0.1'
 
