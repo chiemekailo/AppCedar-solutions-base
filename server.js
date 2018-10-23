@@ -911,7 +911,7 @@ app.post('/brainWallet', function(req, res) {
 //app.listen(port, callback);
 
 ///app.listen(8500, function() {
-/************?*/ //<<-- add slash after '?*' to go local <> toggle 7 line down
+/************?* //<<-- add slash after '?*' to go local <> toggle 7 line down
 var server_port = process.env.PORT || 5000
 app.listen(server_port, function() {
   console.log( "Listening on 'localhost', port " + server_port )
@@ -920,7 +920,7 @@ app.listen(server_port, function() {
   app.get('/', function (req, res) {
     res.send('Hello World!');
   });
-/************?* //<<-- add slash after '?*' to go OpenShift <> toggle 7 line up
+/************?*/ //<<-- add slash after '?*' to go OpenShift <> toggle 7 line up
 var server_port = process.env.OPENSHIFT_NODEJS_PORT || 8080
 var server_ip_address = process.env.OPENSHIFT_NODEJS_IP || '0.0.0.0'  //'127.0.0.1'
 
